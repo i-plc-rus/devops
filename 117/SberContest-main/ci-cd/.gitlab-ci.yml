@@ -1,0 +1,71 @@
+stages:
+  - build
+  - test
+  - deploy
+  - rollback
+
+variables:
+  DOCKER_IMAGE_A: "ghcr.io/totem09/SberContest/service-a"
+  DOCKER_IMAGE_B: "ghcr.io/totem09/SberContest/service-b"
+
+before_script:
+  - echo "$GITHUB_TOKEN" | docker login ghcr.io -u totem09 --password-stdin
+
+build_service_a:
+  stage: build
+  script:
+    - docker build -t $DOCKER_IMAGE_A:$CI_COMMIT_SHA ./services/service-a
+    - docker push $DOCKER_IMAGE_A:$CI_COMMIT_SHA
+  only:
+    - main
+
+build_service_b:
+  stage: build
+  script:
+    - docker build -t $DOCKER_IMAGE_B:$CI_COMMIT_SHA ./services/service-b
+    - docker push $DOCKER_IMAGE_B:$CI_COMMIT_SHA
+  only:
+    - main
+
+test_service_a:
+  stage: test
+  script:
+    - docker run --rm $DOCKER_IMAGE_A:$CI_COMMIT_SHA npm test
+  only:
+    - main
+
+test_service_b:
+  stage: test
+  script:
+    - docker run --rm $DOCKER_IMAGE_B:$CI_COMMIT_SHA python -m unittest discover
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_CONTENT" > ~/.kube/config
+    - kubectl config set-context --current --namespace=microservices-app
+    - kubectl set image deployment/service-a service-a=$DOCKER_IMAGE_A:$CI_COMMIT_SHA
+    - kubectl set image deployment/service-b service-b=$DOCKER_IMAGE_B:$CI_COMMIT_SHA
+    - kubectl rollout status deployment/service-a
+    - kubectl rollout status deployment/service-b
+  environment:
+    name: production
+    url: http://service-a.local
+  only:
+    - main
+
+rollback:
+  stage: rollback
+  script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_CONTENT" > ~/.kube/config
+    - kubectl config set-context --current --namespace=microservices-app
+    - kubectl rollout undo deployment/service-a
+    - kubectl rollout undo deployment/service-b
+    - echo "Rollback completed"
+  when: on_failure
+  only:
+    - main

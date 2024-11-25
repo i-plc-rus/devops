@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: microservices-app
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: 'email@gmail.com'
+      smtp_auth_username: 'email@gmail.com'
+      smtp_auth_password: 'password'
+      smtp_require_tls: true
+
+    route:
+      receiver: 'email-notifications'
+
+    receivers:
+      - name: 'email-notifications'
+        email_configs:
+          - to: 'email@gmail.com'

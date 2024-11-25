@@ -1,0 +1,20 @@
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  script:
+    - docker build -t my-repo/service-a ./service-a
+    - docker build -t my-repo/service-b ./service-b
+
+test:
+  stage: test
+  script:
+    - echo "Running tests"
+
+deploy:
+  stage: deploy
+  script:
+    - kubectl apply -f kubernetes/
